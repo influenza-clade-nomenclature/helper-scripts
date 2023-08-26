@@ -9,7 +9,7 @@ def generate_lineage_md(subclade, lineage, segment):
     lines.append(f" * parent: [{subclade['parent']}](#{subclade['parent'].replace('.', '')})")
     snp_str = ', '.join(f"{x['locus']}:{x['position']}{x['state']}" for x in subclade['defining_mutations'])
     lines.append(f" * defining mutations or substitutions: {snp_str}")
-    if "clade" in lineage and subclade['clade'] != "none":
+    if "clade" in subclade and subclade['clade'] != "none":
         lines.append(f" * clade: {subclade['clade']}")
 
     ref_seqs = [f"[{x.get('isolate', x['accession'])}](https://www.ncbi.nlm.nih.gov/nuccore/{x['accession']})" for x in subclade['representatives'] if x['source']=='genbank']
@@ -38,10 +38,18 @@ if __name__=="__main__":
         subclades.append(yaml_data)
 
     subclades.sort(key=lambda x:x['name'])
+    clade_lineage_map = [(x['clade'], x['name'], x['unaliased_name']) for x in subclades if 'clade' in x and x['clade'] != 'none']
     # Write to json file
     with open('.auto-generated/subclades.md', 'w') as outfile:
         outfile.write("# Summary of designated subclades\n")
 
         for subclade in subclades:
             outfile.write(generate_lineage_md(subclade, args.lineage, args.segment) + '\n')
+
+        # write table of clade -- subclade correspondence
+        outfile.write("# Clade -- subclade correspondence\n")
+        outfile.write(f"|*Clade*|*Subclade*|*full subclade name*|\n")
+        outfile.write(f"|-------------|---------|----------------------|\n")
+        for clade, lineage, unaliased_name in clade_lineage_map:
+            outfile.write(f"|{clade}|[{lineage}](#{lineage.replace('.','')})|{unaliased_name}|\n")
 
