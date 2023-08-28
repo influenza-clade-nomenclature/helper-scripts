@@ -25,6 +25,7 @@ def generate_lineage_md(subclade, lineage, segment):
 if __name__=="__main__":
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument('--input-dir', required=True)
     parser.add_argument('--lineage')
     parser.add_argument('--segment')
     args = parser.parse_args()
@@ -32,13 +33,14 @@ if __name__=="__main__":
 
     subclades = []
     # Iterate through all lineage definition files
-    for yaml_file in sorted(glob.glob(f"subclades/*.yml")):
+    for yaml_file in sorted(glob.glob(f"{args.input_dir}/*.yml")):
         with open(yaml_file, 'r') as stream:
             yaml_data = yaml.safe_load(stream)
         subclades.append(yaml_data)
 
     subclades.sort(key=lambda x:x['name'])
-    clade_lineage_map = [(x['clade'], x['name'], x['unaliased_name']) for x in subclades if 'clade' in x and x['clade'] != 'none']
+    clade_lineage_map = [(x['clade'], x['name'], x['unaliased_name'])
+                         for x in subclades if 'clade' in x and x['clade'] != 'none']
     # Write to json file
     with open('.auto-generated/subclades.md', 'w') as outfile:
         outfile.write("# Summary of designated subclades\n")
@@ -46,10 +48,11 @@ if __name__=="__main__":
         for subclade in subclades:
             outfile.write(generate_lineage_md(subclade, args.lineage, args.segment) + '\n')
 
-        # write table of clade -- subclade correspondence
-        outfile.write("# Clade -- subclade correspondence\n")
-        outfile.write(f"|*Clade*|*Subclade*|*full subclade name*|\n")
-        outfile.write(f"|-------------|---------|----------------------|\n")
-        for clade, lineage, unaliased_name in clade_lineage_map:
-            outfile.write(f"|{clade}|[{lineage}](#{lineage.replace('.','')})|{unaliased_name}|\n")
+        if len(clade_lineage_map):
+            # write table of clade -- subclade correspondence
+            outfile.write("# Clade -- subclade correspondence\n")
+            outfile.write(f"|*Clade*|*Subclade*|*full subclade name*|\n")
+            outfile.write(f"|-------------|---------|----------------------|\n")
+            for clade, lineage, unaliased_name in clade_lineage_map:
+                outfile.write(f"|{clade}|[{lineage}](#{lineage.replace('.','')})|{unaliased_name}|\n")
 

@@ -3,8 +3,8 @@ import yaml, glob
 if __name__=="__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input-dir')
-    parser.add_argument('--aux-input-dir',required=True)
+    parser.add_argument('--input-dir', required=True)
+    parser.add_argument('--aux-input-dir')
     parser.add_argument('--use-short-name', action='store_true', default=False)
     parser.add_argument('--flat-output', action='store_true', default=False)
     parser.add_argument('--output-tsv')
