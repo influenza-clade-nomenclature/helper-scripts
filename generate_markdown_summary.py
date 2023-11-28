@@ -12,14 +12,26 @@ def generate_lineage_md(subclade, lineage, segment):
     if "clade" in subclade and subclade['clade'] != "none":
         lines.append(f" * clade: {subclade['clade']}")
 
-    ref_seqs = [f"[{x.get('isolate', x['accession'])}](https://www.ncbi.nlm.nih.gov/nuccore/{x['accession']})" for x in subclade['representatives'] if x['source']=='genbank']
+    ref_seqs = []
+    for x in subclade['representatives']:
+        nextstrain_link = f"[View on Nextstrain](https://nextstrain.org/flu/seasonal/{lineage}/{segment}/6y?c=subclade&s={x['isolate']})"
+        if x['source']=='genbank' and 'accession' in x:
+            accession_link = f"[{x['accession']}](https://www.ncbi.nlm.nih.gov/nuccore/{x['accession']})"
+        elif x['source']=='gisaid':
+            accession_link = x['accession']
+
+        if 'other_accession' in x:
+            other_accession = f", {x['other_accession']}"
+        else: other_accession=''
+        ref_seqs.append(f"{x.get('isolate', x['accession'])} ({accession_link}{other_accession}) {nextstrain_link}")
+
     if len(ref_seqs)==1:
         lines.append(f" * representative sequence: {ref_seqs[0]}")
     elif len(ref_seqs)>1:
         lines.append(f" * representative sequences:")
         for r in ref_seqs:
             lines.append(f"   - {r}")
-    lines.append(f" * [View in Nextstrain](https://nextstrain.org/flu/seasonal/{lineage}/{segment}/6y?branchLabel=Subclade&c=subclade&label=Subclade:{subclade['name']})")
+    lines.append(f" * [View on Nextstrain](https://nextstrain.org/flu/seasonal/{lineage}/{segment}/6y?branchLabel=Subclade&c=subclade&label=Subclade:{subclade['name']})")
     return '\n'.join(lines) + '\n'
 
 if __name__=="__main__":
@@ -46,6 +58,7 @@ if __name__=="__main__":
         outfile.write("# Summary of designated subclades\n")
 
         for subclade in subclades:
+            print("output clade", subclade['name'])
             outfile.write(generate_lineage_md(subclade, args.lineage, args.segment) + '\n')
 
         if len(clade_lineage_map):
