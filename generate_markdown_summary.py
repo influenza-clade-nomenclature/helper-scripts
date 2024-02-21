@@ -5,8 +5,15 @@ import glob
 
 def generate_lineage_md(subclade, lineage, segment):
     lines = []
-    lines.append(f"## {subclade['name']}")
+    revoked = subclade.get('revoked', False)
+    if revoked:
+        lines.append(f"## ~~{subclade['name']}~~ (revoked)")
+    else:
+        lines.append(f"## {subclade['name']}")
+
     lines.append(f" * parent: [{subclade['parent']}](#{subclade['parent'].replace('.', '')})")
+    if 'comment' in subclade and subclade['comment']:
+        lines.append(f" * comment: {subclade['comment']}")
     snp_str = ', '.join(f"{x['locus']}:{x['position']}{x['state']}" for x in subclade['defining_mutations'])
     lines.append(f" * defining mutations or substitutions: {snp_str}")
     if "clade" in subclade and subclade['clade'] != "none":

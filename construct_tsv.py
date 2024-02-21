@@ -16,6 +16,8 @@ if __name__=="__main__":
         with open(yfile, 'r') as stream:
             yaml_data = yaml.safe_load(stream)
             clades[yaml_data['name']] = {'parent': yaml_data['parent'],
+                                         'revoked': yaml_data.get('revoked', False),
+                                         'comment': yaml_data.get('comment', ''),
                                         'defining_muts':{(x['locus'], x['position']):x['state']
                                         for x in yaml_data.get('defining_mutations', [])}}
             for k in ['alias_of', 'short_name']:
@@ -29,6 +31,8 @@ if __name__=="__main__":
             with open(yfile, 'r') as stream:
                 yaml_data = yaml.safe_load(stream)
                 subclades[yaml_data['name']] = {'parent': yaml_data['parent'],
+                                            'revoked': yaml_data.get('revoked', False),
+                                            'comment': yaml_data.get('comment', ''),
                                             'defining_muts':{(x['locus'], x['position']):x['state']
                                             for x in yaml_data['defining_mutations']}}
 
@@ -59,15 +63,17 @@ if __name__=="__main__":
                 for (locus, position), state in clades[c]['defining_muts'].items():
                     all_muts[c][(locus, position)] = state
 
-            out_name = c if not args.use_short_name else clades[c].get('short_name', c)
-            for (locus, position), state in all_muts[c].items():
-                tsv_file.write(sep.join([out_name, locus, str(position),state])+'\n')
+            if not clades[c].get('revoked', False):
+                out_name = c if not args.use_short_name else clades[c].get('short_name', c)
+                for (locus, position), state in all_muts[c].items():
+                    tsv_file.write(sep.join([out_name, locus, str(position),state])+'\n')
 
     else:
         for c in sorted(clades.keys()):
-            if clades[c].get('parent', 'none')!='none':
-                tsv_file.write(sep.join([c,'clade', clades[c]['parent'],''])+'\n')
-            for (locus, position), state in clades[c]['defining_muts'].items():
-                tsv_file.write(sep.join([c, locus, str(position),state])+'\n')
+            if not clades[c].get('revoked', False):
+                if clades[c].get('parent', 'none')!='none':
+                    tsv_file.write(sep.join([c,'clade', clades[c]['parent'],''])+'\n')
+                for (locus, position), state in clades[c]['defining_muts'].items():
+                    tsv_file.write(sep.join([c, locus, str(position),state])+'\n')
 
     tsv_file.close()
