@@ -59,7 +59,7 @@ if __name__=="__main__":
 
     subclades.sort(key=lambda x:x['name'])
     clade_lineage_map = [(x['clade'], x['name'], x['unaliased_name'])
-                         for x in subclades if 'clade' in x and x['clade'] != 'none']
+                         for x in subclades if 'clade' in x and x['clade'] != 'none' and (not x.get('revoked', False))]
     # Write to json file
     with open('.auto-generated/subclades.md', 'w') as outfile:
         outfile.write("# Summary of designated subclades\n")
