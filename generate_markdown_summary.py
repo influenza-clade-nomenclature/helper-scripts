@@ -76,3 +76,9 @@ if __name__=="__main__":
             for clade, lineage, unaliased_name in clade_lineage_map:
                 outfile.write(f"|{clade}|[{lineage}](#{lineage.replace('.','')})|{unaliased_name}|\n")
 
+
+    with open('subclades.tex', 'w') as latexoutfile:
+        latexoutfile.write(f"Subclade & Clade & full subclade name\\\\\\hline\n")
+
+        for subclade in subclades:
+            latexoutfile.write(f"{subclade['name']} & {subclade.get('clade','')} & {subclade['unaliased_name']}\\\\\n")

@@ -3,14 +3,17 @@ import yaml, glob
 if __name__=="__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input-dir', required=True)
-    parser.add_argument('--aux-input-dir')
+    parser.add_argument('--input-dir', nargs='+', required=True)
+    parser.add_argument('--aux-input-dir', help='input directory for with definitions for clades that are only defined through aliases')
     parser.add_argument('--use-short-name', action='store_true', default=False)
     parser.add_argument('--flat-output', action='store_true', default=False)
     parser.add_argument('--output-tsv')
     args = parser.parse_args()
 
-    yml_files = glob.glob(args.input_dir+'/*yml')
+    yml_files = []
+    for yml_dir in args.input_dir:
+        yml_files.extend(glob.glob(yml_dir+'/*yml'))
+
     clades = {}
     for yfile in yml_files:
         with open(yfile, 'r') as stream:
