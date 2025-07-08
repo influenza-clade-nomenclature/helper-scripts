@@ -21,7 +21,7 @@ def generate_lineage_md(subclade, lineage, segment):
 
     ref_seqs = []
     for x in subclade['representatives']:
-        nextstrain_link = f"[View on Nextstrain](https://nextstrain.org/flu/seasonal/{lineage}/{segment}/6y?c=subclade&s={x['isolate']})"
+        nextstrain_link = f"[View on Nextstrain](https://nextstrain.org/seasonal-flu/{lineage}/{segment}/6y?c=subclade&s={x['isolate']})"
         if x['source']=='genbank' and 'accession' in x:
             accession_link = f"[{x['accession']}](https://www.ncbi.nlm.nih.gov/nuccore/{x['accession']})"
         elif x['source']=='gisaid':
@@ -38,7 +38,7 @@ def generate_lineage_md(subclade, lineage, segment):
         lines.append(f" * representative sequences:")
         for r in ref_seqs:
             lines.append(f"   - {r}")
-    lines.append(f" * [View on Nextstrain](https://nextstrain.org/flu/seasonal/{lineage}/{segment}/6y?branchLabel=Subclade&c=subclade&label=Subclade:{subclade['name']})")
+    lines.append(f" * [View on Nextstrain](https://nextstrain.org/seasonal-flu/{lineage}/{segment}/6y?branchLabel=Subclade&c=subclade&label=Subclade:{subclade['name']})")
     return '\n'.join(lines) + '\n'
 
 if __name__=="__main__":
