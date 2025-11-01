@@ -1,4 +1,5 @@
-import yaml, glob
+import yaml
+import glob
 
 if __name__=="__main__":
     import argparse

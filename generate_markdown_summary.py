@@ -80,15 +80,10 @@ if __name__=="__main__":
                 outfile.write(f"|{clade}|[{lineage}](#{lineage.replace('.','')})|{unaliased_name}|\n")
 
 
-    with open('subclades.tex', 'w') as latexoutfile:
-        latexoutfile.write("Subclade & Clade & full subclade name\\\\\\hline\n")
+    # with open('subclades.tex', 'w') as latexoutfile:
+    #     latexoutfile.write("Subclade & Clade & full subclade name\\\\\\hline\n")
 
-        for subclade in subclades:
-            latexoutfile.write(f"{subclade['name']} & {subclade.get('clade','')} & {subclade['unaliased_name']}\\\\\n")
+    #     for subclade in subclades:
+    #         latexoutfile.write(f"{subclade['name']} & {subclade.get('clade','')} & {subclade['unaliased_name']}\\\\\n")
 
-    with open('subclades.tsv', 'w') as tsvoutfile:
-        tsvoutfile.write("Subclade\tClade\tfull subclade name\n")
-
-        for subclade in subclades:
-            tsvoutfile.write(f"{subclade['name']}\t{subclade.get('clade','')}\t{subclade['unaliased_name']}\n")
 
