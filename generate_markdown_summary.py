@@ -71,14 +71,21 @@ if __name__=="__main__":
         if len(clade_lineage_map):
             # write table of clade -- subclade correspondence
             outfile.write("# Clade -- subclade correspondence\n")
-            outfile.write(f"|*Clade*|*Subclade*|*full subclade name*|\n")
-            outfile.write(f"|-------------|---------|----------------------|\n")
+            outfile.write("|*Clade*|*Subclade*|*full subclade name*|\n")
+            outfile.write("|-------------|---------|----------------------|\n")
             for clade, lineage, unaliased_name in clade_lineage_map:
                 outfile.write(f"|{clade}|[{lineage}](#{lineage.replace('.','')})|{unaliased_name}|\n")
 
 
     with open('subclades.tex', 'w') as latexoutfile:
-        latexoutfile.write(f"Subclade & Clade & full subclade name\\\\\\hline\n")
+        latexoutfile.write("Subclade & Clade & full subclade name\\\\\\hline\n")
 
         for subclade in subclades:
             latexoutfile.write(f"{subclade['name']} & {subclade.get('clade','')} & {subclade['unaliased_name']}\\\\\n")
+
+    with open('subclades.tsv', 'w') as tsvoutfile:
+        tsvoutfile.write("Subclade\tClade\tfull subclade name\n")
+
+        for subclade in subclades:
+            tsvoutfile.write(f"{subclade['name']}\t{subclade.get('clade','')}\t{subclade['unaliased_name']}\n")
+
