@@ -38,7 +38,7 @@ def generate_lineage_md(subclade, lineage, segment):
     if len(ref_seqs)==1:
         lines.append(f" * representative sequence: {ref_seqs[0]}")
     elif len(ref_seqs)>1:
-        lines.append(f" * representative sequences:")
+        lines.append(" * representative sequences:")
         for r in ref_seqs:
             lines.append(f"   - {r}")
     lines.append(f" * [View on Nextstrain](https://nextstrain.org/seasonal-flu/{lineage}/{segment}/6y?branchLabel=Subclade&c=subclade&label=Subclade:{subclade['name']})")
