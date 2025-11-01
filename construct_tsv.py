@@ -8,12 +8,15 @@ if __name__=="__main__":
     parser.add_argument('--use-short-name', action='store_true', default=False)
     parser.add_argument('--flat-output', action='store_true', default=False)
     parser.add_argument('--output-tsv')
+    parser.add_argument('--output-alias-tsv')
     args = parser.parse_args()
 
+    # read all clade definitions
     yml_files = []
     for yml_dir in args.input_dir:
         yml_files.extend(glob.glob(yml_dir+'/*yml'))
 
+    # organize clade data
     clades = {}
     for yfile in yml_files:
         with open(yfile, 'r') as stream:
@@ -21,12 +24,16 @@ if __name__=="__main__":
             clades[yaml_data['name']] = {'parent': yaml_data['parent'],
                                          'revoked': yaml_data.get('revoked', False),
                                          'comment': yaml_data.get('comment', ''),
-                                        'defining_muts':{(x['locus'], x['position']):x['state']
+                                         'alias_of': yaml_data.get('alias_of', ''),
+                                         'unaliased_name': yaml_data.get('unaliased_name', ''),
+                                         'defining_muts':{(x['locus'], x['position']):x['state']
                                         for x in yaml_data.get('defining_mutations', [])}}
             for k in ['alias_of', 'short_name']:
                 if k in yaml_data:
                     clades[yaml_data['name']][k] = yaml_data[k]
 
+    # read auxiliary clade definitions if provided (e.g. clades that are defined only through reference to subclades)
+    # in this case, the aux_input_dir refers to the subclade definitions
     if args.aux_input_dir:
         yml_files = glob.glob(args.aux_input_dir+'/*yml')
         subclades = {}
@@ -80,3 +87,11 @@ if __name__=="__main__":
                     tsv_file.write(sep.join([c, locus, str(position),state])+'\n')
 
     tsv_file.close()
+
+    if args.output_alias_tsv:
+        with open(args.output_alias_tsv, 'w') as alias_tsv_file:
+            sep = '\t'
+            alias_tsv_file.write(sep.join(['subclade','alias of', 'unaliased name', 'parent'])+'\n')
+            for c in sorted(clades.keys()):
+                if 'alias_of' in clades[c] and not clades[c]['revoked']:
+                    alias_tsv_file.write(sep.join([c, clades[c]['alias_of'], clades[c]['unaliased_name'], clades[c]['parent']])+'\n')

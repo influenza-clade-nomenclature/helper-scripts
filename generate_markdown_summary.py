@@ -2,6 +2,7 @@
 #%%
 import yaml
 import glob
+from urllib.parse import quote
 
 def generate_lineage_md(subclade, lineage, segment):
     lines = []
@@ -11,6 +12,8 @@ def generate_lineage_md(subclade, lineage, segment):
     else:
         lines.append(f"## {subclade['name']}")
 
+    if 'alias_of' in subclade:
+        lines.append(f" * alias of: {subclade['alias_of']}")
     lines.append(f" * parent: [{subclade['parent']}](#{subclade['parent'].replace('.', '')})")
     if 'comment' in subclade and subclade['comment']:
         lines.append(f" * comment: {subclade['comment']}")
@@ -21,7 +24,7 @@ def generate_lineage_md(subclade, lineage, segment):
 
     ref_seqs = []
     for x in subclade['representatives']:
-        nextstrain_link = f"[View on Nextstrain](https://nextstrain.org/seasonal-flu/{lineage}/{segment}/6y?c=subclade&s={x['isolate']})"
+        nextstrain_link = f"[View on Nextstrain](https://nextstrain.org/seasonal-flu/{lineage}/{segment}/6y?c=subclade&s={quote(x['isolate'])})"
         if x['source']=='genbank' and 'accession' in x:
             accession_link = f"[{x['accession']}](https://www.ncbi.nlm.nih.gov/nuccore/{x['accession']})"
         elif x['source']=='gisaid':
