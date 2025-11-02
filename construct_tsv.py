@@ -1,3 +1,4 @@
+from collections import defaultdict
 import yaml
 import glob
 
@@ -10,6 +11,7 @@ if __name__=="__main__":
     parser.add_argument('--flat-output', action='store_true', default=False)
     parser.add_argument('--output-tsv')
     parser.add_argument('--output-alias-tsv')
+    parser.add_argument('--output-newick')
     args = parser.parse_args()
 
     # read all clade definitions
@@ -96,3 +98,23 @@ if __name__=="__main__":
             for c in sorted(clades.keys()):
                 if 'alias_of' in clades[c] and not clades[c]['revoked']:
                     alias_tsv_file.write(sep.join([c, clades[c]['alias_of'], clades[c]['unaliased_name'], clades[c]['parent']])+'\n')
+
+    if args.output_newick:
+        # make parent to child mapping
+        parent_child_map = defaultdict(list)
+        for c in clades:
+            if not clades[c].get('revoked', False):
+                parent_child_map[clades[c]['parent']].append(c)
+
+        root = parent_child_map['none'][0] if len(parent_child_map['none'])==1 else 'root'
+
+        def build_newick(clade):
+            if clade not in parent_child_map:
+                return clade
+            else:
+                children_str = ','.join([build_newick(child) for child in parent_child_map[clade]])
+                return f"({children_str}){clade}"
+        newick_str = build_newick(root) + ';'
+        with open(args.output_newick, 'w') as newick_file:
+            newick_file.write(newick_str + '\n')
+
