@@ -107,6 +107,9 @@ if __name__=="__main__":
                 parent_child_map[clades[c]['parent']].append(c)
 
         root = parent_child_map['none'][0] if len(parent_child_map['none'])==1 else 'root'
+        if root=='root':
+            for r in parent_child_map['none']:
+                parent_child_map[root].append(r)
 
         def build_newick(clade):
             if clade not in parent_child_map:
