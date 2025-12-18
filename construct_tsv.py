@@ -9,6 +9,7 @@ if __name__=="__main__":
     parser.add_argument('--aux-input-dir', help='input directory for with definitions for clades that are only defined through aliases')
     parser.add_argument('--use-short-name', action='store_true', default=False)
     parser.add_argument('--flat-output', action='store_true', default=False)
+    parser.add_argument('--add-unassigned-root', action='store_true', default=False)
     parser.add_argument('--output-tsv')
     parser.add_argument('--output-alias-tsv')
     parser.add_argument('--output-newick')
@@ -106,8 +107,8 @@ if __name__=="__main__":
             if not clades[c].get('revoked', False):
                 parent_child_map[clades[c]['parent']].append(c)
 
-        root = parent_child_map['none'][0] if len(parent_child_map['none'])==1 else 'root'
-        if root=='root':
+        root = 'unassigned' if len(parent_child_map['none'])>1 or args.add_unassigned_root else parent_child_map['none'][0]
+        if root=='unassigned':
             for r in parent_child_map['none']:
                 parent_child_map[root].append(r)
 
