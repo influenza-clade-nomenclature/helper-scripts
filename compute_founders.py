@@ -9,7 +9,10 @@ than a majority keeps mutations that arose within the lineage out of the founder
 provided the representatives sample the basal diversity of the lineage.
 
 Representative sequences have to be aligned to the repository reference, e.g.
-    nextclade run --input-ref config/reference.fasta --output-fasta aligned.fasta reps.fasta
+    nextclade run --gap-alignment-side right --input-ref config/reference.fasta \
+        --input-annotation config/annotation.gff --output-fasta aligned.fasta reps.fasta
+The gap alignment side matters: nextclade defaults to `left`, which places a deletion in a
+repeat further 3' than the convention used for the founders.
 They are matched to the yaml entries by isolate name (ignoring spaces and case)
 or by accession.
 """
@@ -19,7 +22,7 @@ from Bio import SeqIO
 
 from founder_utils import (load_lineages, load_reference, load_annotation, assemble_founders,
                            preorder, parent_of, diff, apply_mutations, check_defining_mutations,
-                           write_founder_block)
+                           left_align_gaps, write_founder_block)
 
 
 def normalize(name):
@@ -80,13 +83,23 @@ if __name__ == "__main__":
     annotation = load_annotation(args.annotation)
     founders, _ = assemble_founders(lineages, reference)
 
-    sequences = {}
+    sequences, shifted = {}, []
     for r in SeqIO.parse(args.sequences, 'fasta'):
         seq = str(r.seq).upper()
         if len(seq) != len(reference):
             print(f"Skipping {r.id}: not aligned to reference", file=sys.stderr)
             continue
-        sequences[normalize(r.id)] = seq
+        aligned = left_align_gaps(seq, reference)
+        if aligned != seq:
+            shifted.append(r.id)
+        sequences[normalize(r.id)] = aligned
+
+    if shifted:
+        print(f"WARNING {len(shifted)} of {len(sequences)} representatives had a deletion placed "
+              f"differently from the founders and were adjusted. Align them with\n"
+              f"  nextclade run --gap-alignment-side right --input-ref ... --input-annotation ...\n"
+              f"to place deletions in repeats the same way, e.g. B/Vic HA1 162-164 at nucleotides 562-570.",
+              file=sys.stderr)
 
     targets = set(args.lineages) if args.lineages else {n for n in lineages if 'founder' not in lineages[n]}
     for name in preorder(lineages):

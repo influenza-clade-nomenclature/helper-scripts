@@ -128,6 +128,35 @@ def translate(seq, start, end):
     return ''.join(aa)
 
 
+def left_align_gaps(seq, reference):
+    """
+    Shift internal deletions as far towards the 5' end as the reference allows.
+
+    A deletion in a repeat can be placed at several equivalent positions, and
+    aligners do not all make the same choice. Left alignment is the convention
+    that matches how deletions are usually named, e.g. the deletion of B/Vic HA1
+    codons 162-164 is placed at nucleotides 562-570 rather than further 3'.
+    Gap runs at either end are missing coverage, not deletions, and are left alone.
+    """
+    s = list(seq)
+    i = 0
+    while i < len(s):
+        if s[i] != '-':
+            i += 1
+            continue
+        j = i
+        while j < len(s) and s[j] == '-':
+            j += 1
+        if i > 0 and j < len(s):  # internal gap run [i, j)
+            while (i > 0 and s[i - 1] != '-'
+                   and s[i - 1] == reference[i - 1] == reference[j - 1]):
+                s[j - 1], s[i - 1] = s[i - 1], '-'
+                i -= 1
+                j -= 1
+        i = j
+    return ''.join(s)
+
+
 def children_of(lineages, name):
     return [n for n in lineages if parent_of(lineages, n) == name]
 
