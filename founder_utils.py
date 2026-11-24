@@ -74,6 +74,11 @@ def load_annotation(gff):
         if line.startswith('#') or not line.strip():
             continue
         fields = line.rstrip('\n').split('\t')
+        if len(fields) < 9:
+            # gff blocks copied from documentation are often separated by spaces
+            fields = line.split(None, 8)
+        if len(fields) < 9:
+            raise ValueError(f"Cannot parse annotation line: {line.rstrip()}")
         m = re.search(r'(?:^|;)\s*(?:gene_name|name|Name)="?([^";]+)"?', fields[8])
         if m:
             features[m.group(1)] = (int(fields[3]), int(fields[4]))

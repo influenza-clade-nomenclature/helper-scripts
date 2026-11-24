@@ -40,9 +40,11 @@ def consensus_founder(rep_seqs, parent_founder, min_reps):
         distinct = set(states)
         if len(distinct) == 1:
             founder[i] = states[0]
-        elif parent_state not in distinct:
-            # no representative retains the parent state: founder state is ambiguous
-            unresolved.append((i + 1, ''.join(sorted(distinct))))
+        else:
+            # representatives disagree, so this mutation arose within the lineage as far as
+            # we can tell: keep the parent state, but report it as it may indicate that the
+            # representatives do not sample the basal diversity of the lineage
+            unresolved.append((i + 1, ''.join(sorted(distinct)), parent_state))
     return ''.join(founder), unresolved
 
 
@@ -121,8 +123,8 @@ if __name__ == "__main__":
         problems = check_defining_mutations(name, founder, lineages[name], annotation)
         print(f"{name}: {len(mutations)} mutations relative to {p or 'reference'} "
               f"from {len(rep_seqs)} representatives", file=sys.stderr)
-        for pos, states in unresolved:
-            print(f"  position {pos}: representatives disagree ({states}), kept parent state {background[pos-1]}",
+        for pos, states, kept in unresolved:
+            print(f"  position {pos}: representatives disagree ({states}), kept parent state {kept}",
                   file=sys.stderr)
         for problem in problems:
             print(f"  INCONSISTENT {problem}", file=sys.stderr)
