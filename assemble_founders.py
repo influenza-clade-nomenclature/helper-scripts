@@ -10,7 +10,7 @@ from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 
 from founder_utils import (load_lineages, load_reference, load_annotation, assemble_founders,
-                           check_defining_mutations, parent_of)
+                           check_defining_mutations, left_align_gaps, parent_of)
 
 
 if __name__ == "__main__":
@@ -37,6 +37,9 @@ if __name__ == "__main__":
         p = parent_of(lineages, name)
         if p and founders.get(p) == seq:
             problems.append(f"{name}: founder identical to founder of parent {p}")
+        if left_align_gaps(seq, reference) != seq:
+            problems.append(f"{name}: deletion not placed as far 5' as the reference allows, "
+                            f"align representatives with nextclade --gap-alignment-side right")
 
     for name in missing:
         print(f"MISSING founder: {name}", file=sys.stderr)
