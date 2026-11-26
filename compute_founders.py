@@ -8,15 +8,24 @@ the founder inherits the state of the parent founder. Requiring unanimity rather
 than a majority keeps mutations that arose within the lineage out of the founder,
 provided the representatives sample the basal diversity of the lineage.
 
-Representative sequences have to be aligned to the repository reference, e.g.
-    nextclade run --gap-alignment-side right --input-ref config/reference.fasta \
-        --input-annotation config/annotation.gff --output-fasta aligned.fasta reps.fasta
+Representative sequences can be provided in two ways:
+  --all-sequences: any fasta (e.g. a GISAID download) with strain names without spaces at
+      the start of the header, optionally followed by `|`-separated fields. Representatives
+      of the target lineages are extracted with seqkit and aligned with nextclade.
+  --sequences: representatives already aligned to the repository reference, e.g.
+      nextclade run --gap-alignment-side right --input-ref config/reference.fasta \
+          --input-annotation config/annotation.gff --output-fasta aligned.fasta reps.fasta
 The gap alignment side matters: nextclade defaults to `left`, which places a deletion in a
 repeat further 3' than the convention used for the founders.
-They are matched to the yaml entries by isolate name (ignoring spaces and case)
-or by accession.
+Sequences are matched to the yaml entries by isolate name (ignoring spaces and case)
+or by accession, using any `|`-separated field of the header.
 """
+import os
+import re
+import shutil
+import subprocess
 import sys
+import tempfile
 
 from Bio import SeqIO
 
@@ -27,6 +36,48 @@ from founder_utils import (load_lineages, load_reference, load_annotation, assem
 
 def normalize(name):
     return name.replace(' ', '').lower()
+
+
+def header_keys(header):
+    """Normalized names a sequence can be matched by: each `|`-separated field, without accession version."""
+    keys = set()
+    for field in header.split('|'):
+        key = normalize(field)
+        if key:
+            keys.add(key)
+            keys.add(re.sub(r'\.\d+$', '', key))
+    return keys
+
+
+def go_regex_escape(text):
+    # seqkit uses Go regular expressions, which reject some escapes produced by re.escape
+    return re.sub(r'([\\.+*?()|\[\]{}^$])', r'\\\1', text)
+
+
+def extract_and_align(all_sequences, keys, reference_fasta, annotation_gff, workdir):
+    """Extract sequences matching isolate names or accessions with seqkit and align them with nextclade."""
+    for tool in ('seqkit', 'nextclade'):
+        if shutil.which(tool) is None:
+            sys.exit(f"{tool} not found, it is required for --all-sequences")
+    patterns = os.path.join(workdir, 'patterns.txt')
+    with open(patterns, 'w') as fh:
+        for key in sorted(keys):
+            fh.write(f"(^|\\|){go_regex_escape(key)}(\\.\\d+)?(\\||$)\n")
+    extracted = os.path.join(workdir, 'representatives.fasta')
+    aligned = os.path.join(workdir, 'representatives.aligned.fasta')
+    # without spaces in strain names, the sequence ID seqkit matches against is the full header
+    subprocess.run(['seqkit', 'grep', '--quiet', '-r', '-i', '-f', patterns, '-o', extracted, all_sequences],
+                   check=True)
+    n_extracted = sum(1 for _ in SeqIO.parse(extracted, 'fasta'))
+    print(f"Extracted {n_extracted} sequences matching {len(keys)} isolate names and accessions",
+          file=sys.stderr)
+    if n_extracted == 0:
+        return aligned, n_extracted
+    # sequences that do not align, e.g. other segments of the same isolate, are dropped by nextclade
+    subprocess.run(['nextclade', 'run', '--quiet', '--gap-alignment-side', 'right',
+                    '--input-ref', reference_fasta, '--input-annotation', annotation_gff,
+                    '--output-fasta', aligned, extracted], check=True)
+    return aligned, n_extracted
 
 
 def consensus_founder(rep_seqs, parent_founder, min_reps):
@@ -67,7 +118,10 @@ if __name__ == "__main__":
     parser.add_argument('--input-dir', nargs='+', required=True)
     parser.add_argument('--reference', required=True)
     parser.add_argument('--annotation', required=True)
-    parser.add_argument('--sequences', required=True, help='representative sequences aligned to the reference')
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument('--all-sequences', help='unaligned fasta containing the representatives among other sequences')
+    source.add_argument('--sequences', help='representative sequences aligned to the reference')
+    parser.add_argument('--output-sequences', help='with --all-sequences: save the aligned representatives here')
     parser.add_argument('--lineages', nargs='+', help='lineages to compute (default: all without founder)')
     parser.add_argument('--min-representatives', type=int, default=2)
     parser.add_argument('--overwrite', action='store_true', help='replace existing founder blocks')
@@ -83,8 +137,25 @@ if __name__ == "__main__":
     annotation = load_annotation(args.annotation)
     founders, _ = assemble_founders(lineages, reference)
 
-    sequences, shifted = {}, []
-    for r in SeqIO.parse(args.sequences, 'fasta'):
+    targets = set(args.lineages) if args.lineages else {n for n in lineages if 'founder' not in lineages[n]}
+    unknown = targets - set(lineages)
+    if unknown:
+        sys.exit(f"Unknown lineages: {', '.join(sorted(unknown))}")
+
+    with tempfile.TemporaryDirectory() as workdir:
+        if args.all_sequences:
+            keys = {normalize(str(r[k])) for n in targets for r in lineages[n].get('representatives') or []
+                    for k in ('isolate', 'accession') if r.get(k)}
+            aligned_fasta, n_extracted = extract_and_align(args.all_sequences, keys, args.reference,
+                                                           args.annotation, workdir)
+            if args.output_sequences and n_extracted:
+                shutil.copy(aligned_fasta, args.output_sequences)
+            records = list(SeqIO.parse(aligned_fasta, 'fasta')) if n_extracted else []
+        else:
+            records = list(SeqIO.parse(args.sequences, 'fasta'))
+
+    sequences, shifted, duplicates = {}, [], set()
+    for r in records:
         seq = str(r.seq).upper()
         if len(seq) != len(reference):
             print(f"Skipping {r.id}: not aligned to reference", file=sys.stderr)
@@ -92,16 +163,21 @@ if __name__ == "__main__":
         aligned = left_align_gaps(seq, reference)
         if aligned != seq:
             shifted.append(r.id)
-        sequences[normalize(r.id)] = aligned
+        for key in header_keys(r.id):
+            # several sequences of the same isolate (e.g. different passages): keep the best covered
+            if key in sequences:
+                duplicates.add(key)
+                if coverage(sequences[key]) >= coverage(aligned):
+                    continue
+            sequences[key] = aligned
 
     if shifted:
-        print(f"WARNING {len(shifted)} of {len(sequences)} representatives had a deletion placed "
+        print(f"WARNING {len(shifted)} of {len(records)} representatives had a deletion placed "
               f"differently from the founders and were adjusted. Align them with\n"
               f"  nextclade run --gap-alignment-side right --input-ref ... --input-annotation ...\n"
               f"to place deletions in repeats the same way, e.g. B/Vic HA1 162-164 at nucleotides 562-570.",
               file=sys.stderr)
 
-    targets = set(args.lineages) if args.lineages else {n for n in lineages if 'founder' not in lineages[n]}
     for name in preorder(lineages):
         if name not in targets:
             continue
@@ -117,15 +193,21 @@ if __name__ == "__main__":
         reps = lineages[name].get('representatives') or []
         rep_seqs, found = [], []
         for r in reps:
+            label = r.get('isolate') or str(r.get('accession'))
             for key in (r.get('isolate'), r.get('accession')):
                 if key and normalize(str(key)) in sequences:
                     seq = sequences[normalize(str(key))]
                     rep_seqs.append(seq)
-                    found.append(r.get('isolate') or str(r.get('accession')))
+                    found.append(label)
+                    if normalize(str(key)) in duplicates:
+                        print(f"  NOTE {name}: several sequences match representative {label}, "
+                              f"using the best covered", file=sys.stderr)
                     if coverage(seq) < args.min_coverage:
-                        print(f"  WARNING {name}: representative {found[-1]} has coverage {coverage(seq):.2f}",
+                        print(f"  WARNING {name}: representative {label} has coverage {coverage(seq):.2f}",
                               file=sys.stderr)
                     break
+            else:
+                print(f"  WARNING {name}: representative {label} not found", file=sys.stderr)
         if len(rep_seqs) < args.min_representatives:
             print(f"{name}: SKIPPED, {len(rep_seqs)} of {len(reps)} representatives found "
                   f"(need {args.min_representatives})", file=sys.stderr)
